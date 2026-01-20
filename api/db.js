@@ -1,6 +1,8 @@
 const USERS = []
 
 function getUserByEmail(email) {
+  console.log(USERS);
+  
   return USERS.find(user => user.email === email)
 }
 
@@ -9,6 +11,8 @@ function getUserById(id) {
 }
 
 function createUser(id, email, passKey) {
+  console.log(USERS);
+
   USERS.push({ id, email, passKey })
 }
 

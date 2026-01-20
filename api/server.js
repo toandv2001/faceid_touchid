@@ -4,6 +4,7 @@ const {
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
 } = require("@simplewebauthn/server");
+
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
@@ -18,10 +19,10 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
-const CLIENT_URL = "http://localhost:5173";
+const CLIENT_URL = "http://localhost:3000";
 const RP_ID = "localhost";
 
-app.use(cors({ origin: CLIENT_URL, credentials: true }));
+app.use(cors({ origin: true, credentials: true }));
 
 app.get("/init-register", async (req, res) => {
   const email = req.query.email;
@@ -46,15 +47,59 @@ app.get("/init-register", async (req, res) => {
       email,
       challenge: options.challenge,
     }),
-    { httpOnly: true, maxAge: 60000, secure: true }
+    {
+      httpOnly: true,
+      secure: false,      // ❗ localhost = false
+      sameSite: "lax",    // ❗ bắt buộc
+      maxAge: 60 * 1000,
+    }
   );
+  
 
   res.json(options);
 });
 
-app.post("/verify-register", async (req, res) => {
-  const regInfo = JSON.parse(req.cookies.regInfo);
+app.post("/init-register", async (req, res) => {
+  if (!req.body) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+   const { email } = req.body;
+  // if (getUserByEmail(email) != null) {
+  //   return res.status(400).json({ error: "User already exists" });
+  // }
 
+  const options = await generateRegistrationOptions({
+    rpID: RP_ID,
+    rpName: "Web Dev Simplified",
+    userName: email,
+    data:req.body
+  });
+
+  res.cookie(
+    "regInfo",
+    JSON.stringify({
+      userId: options.user.id,
+      email,
+      challenge: options.challenge,
+      data:req.body
+    }),
+    {
+      httpOnly: true,
+      // secure: true,
+      sameSite: "lax",
+      maxAge: 60 * 1000,
+    }
+  );
+
+  return res.json(options);
+});
+
+
+app.post("/verify-register", async (req, res) => {
+
+  const regInfo = JSON.parse(req.cookies?.regInfo);
+ 
+  
   if (!regInfo) {
     return res.status(400).json({ error: "Registration info not found" });
   }
@@ -87,6 +132,8 @@ app.post("/verify-register", async (req, res) => {
 
 app.get("/init-auth", async (req, res) => {
   const email = req.query.email;
+  console.log(email);
+  
   if (!email) {
     return res.status(400).json({ error: "Email is required" });
   }
@@ -113,11 +160,46 @@ app.get("/init-auth", async (req, res) => {
       userId: user.id,
       challenge: options.challenge,
     }),
-    { httpOnly: true, maxAge: 60000, secure: true }
+    { httpOnly: true, maxAge: 60000, secure: false }
   );
 
   res.json(options);
 });
+
+app.post("/init-auth", async (req, res) => {
+  const {key}= req.body
+  if (!key) {
+    return res.status(400).json({ error: "key is required" });
+  }
+
+  const user = getUserByEmail(email);
+  if (user == null) {
+    return res.status(400).json({ error: "No user for this email" });
+  }
+
+  const options = await generateAuthenticationOptions({
+    rpID: RP_ID,
+    allowCredentials: [
+      {
+        id: user.passKey.id,
+        type: "public-key",
+        transports: user.passKey.transports,
+      },
+    ],
+  });
+
+  res.cookie(
+    "authInfo",
+    JSON.stringify({
+      userId: user.id,
+      challenge: options.challenge,
+    }),
+    { httpOnly: true, maxAge: 60000, secure: false }
+  );
+
+  res.json(options);
+});
+
 
 app.post("/verify-auth", async (req, res) => {
   const authInfo = JSON.parse(req.cookies.authInfo);
@@ -149,7 +231,9 @@ app.post("/verify-auth", async (req, res) => {
     updateUserCounter(user.id, verification.authenticationInfo.newCounter);
     res.clearCookie("authInfo");
     // Save user in a session cookie
-    return res.json({ verified: verification.verified });
+    return res.json({ verified: verification.verified,
+      user
+     });
   } else {
     return res
       .status(400)
@@ -157,6 +241,6 @@ app.post("/verify-auth", async (req, res) => {
   }
 });
 
-app.listen(3000, () => {
-  console.log("Server is running on http://localhost:3000");
+app.listen(3100, () => {
+  console.log("Server is running on http://localhost:3100");
 });
