@@ -38,7 +38,7 @@ async function signup() {
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(registrationJSON),
+    body: JSON.stringify({ email, registration: registrationJSON }),
   });
 
   const verifyData = await verifyResponse.json();
@@ -74,7 +74,7 @@ async function login() {
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(authJSON),
+    body: JSON.stringify({ email, authentication: authJSON }),
   });
 
   const verifyData = await verifyResponse.json();

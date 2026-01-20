@@ -19,10 +19,22 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
-const CLIENT_URL = "http://localhost:3000";
-const RP_ID = "localhost";
+const CLIENT_URL = "https://percutaneous-marcia-operable.ngrok-free.dev";
+const RP_ID = "percutaneous-marcia-operable.ngrok-free.dev";
 
-app.use(cors({ origin: true, credentials: true }));
+let cookieN 
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Cho phép tất cả origin có header Origin
+      if (!origin) return callback(null, true); // Postman, curl
+      return callback(null, origin);
+    },
+    credentials: true,
+  })
+);
+
 
 app.get("/init-register", async (req, res) => {
   const email = req.query.email;
@@ -40,21 +52,25 @@ app.get("/init-register", async (req, res) => {
     userName: email,
   });
 
-  res.cookie(
-    "regInfo",
-    JSON.stringify({
-      userId: options.user.id,
-      email,
-      challenge: options.challenge,
-    }),
-    {
-      httpOnly: true,
-      secure: false,      // ❗ localhost = false
-      sameSite: "lax",    // ❗ bắt buộc
-      maxAge: 60 * 1000,
-    }
-  );
-  
+  // res.cookie(
+  //   "regInfo",
+  //   JSON.stringify({
+  //     userId: options.user.id,
+  //     email,
+  //     challenge: options.challenge,
+  //   }),
+  //   {
+  //     httpOnly: true,
+  //     secure: false,      // ❗ localhost = false
+  //     sameSite: "lax",    // ❗ bắt buộc
+  //     maxAge: 60 * 1000,
+  //   }
+  // );
+  cookieN ={
+    userId: options.user.id,
+    email,
+    challenge: options.challenge,
+  }
 
   res.json(options);
 });
@@ -74,30 +90,36 @@ app.post("/init-register", async (req, res) => {
     userName: email,
     data:req.body
   });
+console.log("option",options);
 
-  res.cookie(
-    "regInfo",
-    JSON.stringify({
-      userId: options.user.id,
-      email,
-      challenge: options.challenge,
-      data:req.body
-    }),
-    {
-      httpOnly: true,
-      // secure: true,
-      sameSite: "lax",
-      maxAge: 60 * 1000,
-    }
-  );
-
+  // res.cookie(
+  //   "regInfo",
+  //   JSON.stringify({
+  //     userId: options.user.id,
+  //     email,
+  //     challenge: options.challenge,
+  //     data:req.body
+  //   }),
+  //   {
+  //     httpOnly: true,
+  //     // secure: true,
+  //     sameSite: "lax",
+  //     maxAge: 60 * 1000,
+  //   }
+  // );
+  cookieN ={
+    userId: options.user.id,
+    email,
+    challenge: options.challenge,
+  }
   return res.json(options);
 });
 
 
 app.post("/verify-register", async (req, res) => {
-
-  const regInfo = JSON.parse(req.cookies?.regInfo);
+  console.log(cookieN);
+  
+  const regInfo = cookieN;
  
   
   if (!regInfo) {
@@ -121,7 +143,7 @@ app.post("/verify-register", async (req, res) => {
       backedUp: verification.registrationInfo.credentialBackedUp,
       transport: req.body.transports,
     });
-    res.clearCookie("regInfo");
+    cookieN={}
     return res.json({ verified: verification.verified });
   } else {
     return res
@@ -154,15 +176,18 @@ app.get("/init-auth", async (req, res) => {
     ],
   });
 
-  res.cookie(
-    "authInfo",
-    JSON.stringify({
-      userId: user.id,
-      challenge: options.challenge,
-    }),
-    { httpOnly: true, maxAge: 60000, secure: false }
-  );
-
+  // res.cookie(
+  //   "authInfo",
+  //   JSON.stringify({
+  //     userId: user.id,
+  //     challenge: options.challenge,
+  //   }),
+  //   { httpOnly: true, maxAge: 60000, secure: false }
+  // );
+  cookieN={
+    userId: user.id,
+    challenge: options.challenge,
+  }
   res.json(options);
 });
 
@@ -188,21 +213,24 @@ app.post("/init-auth", async (req, res) => {
     ],
   });
 
-  res.cookie(
-    "authInfo",
-    JSON.stringify({
-      userId: user.id,
-      challenge: options.challenge,
-    }),
-    { httpOnly: true, maxAge: 60000, secure: false }
-  );
-
+  // res.cookie(
+  //   "authInfo",
+  //   JSON.stringify({
+  //     userId: user.id,
+  //     challenge: options.challenge,
+  //   }),
+  //   { httpOnly: true, maxAge: 60000, secure: false }
+  // );
+cookieN={
+  userId: user.id,
+  challenge: options.challenge,
+}
   res.json(options);
 });
 
 
 app.post("/verify-auth", async (req, res) => {
-  const authInfo = JSON.parse(req.cookies.authInfo);
+  const authInfo = cookieN;
 
   if (!authInfo) {
     return res.status(400).json({ error: "Authentication info not found" });
@@ -229,7 +257,7 @@ app.post("/verify-auth", async (req, res) => {
 
   if (verification.verified) {
     updateUserCounter(user.id, verification.authenticationInfo.newCounter);
-    res.clearCookie("authInfo");
+    cookieN={}
     // Save user in a session cookie
     return res.json({ verified: verification.verified,
       user
