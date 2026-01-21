@@ -16,24 +16,21 @@ const {
 } = require("./db");
 
 const app = express();
+app.use(cors({
+  origin: true,        // chấp nhận mọi origin
+  credentials: true,   // cho phép cookie
+}));
+
+app.options("*", cors());
 app.use(express.json());
-app.use(cookieParser());
+// app.use(cookieParser());
 
 const CLIENT_URL = "https://percutaneous-marcia-operable.ngrok-free.dev";
 const RP_ID = "percutaneous-marcia-operable.ngrok-free.dev";
 
 let cookieN 
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Cho phép tất cả origin có header Origin
-      if (!origin) return callback(null, true); // Postman, curl
-      return callback(null, origin);
-    },
-    credentials: true,
-  })
-);
+let userN
 
 
 app.get("/init-register", async (req, res) => {
@@ -83,14 +80,14 @@ app.post("/init-register", async (req, res) => {
   // if (getUserByEmail(email) != null) {
   //   return res.status(400).json({ error: "User already exists" });
   // }
-
+  console.log(req.body);
+  
+  userN=req.body
   const options = await generateRegistrationOptions({
     rpID: RP_ID,
     rpName: "Web Dev Simplified",
     userName: email,
-    data:req.body
   });
-console.log("option",options);
 
   // res.cookie(
   //   "regInfo",
@@ -112,12 +109,12 @@ console.log("option",options);
     email,
     challenge: options.challenge,
   }
+  
   return res.json(options);
 });
 
 
 app.post("/verify-register", async (req, res) => {
-  console.log(cookieN);
   
   const regInfo = cookieN;
  
@@ -142,6 +139,8 @@ app.post("/verify-register", async (req, res) => {
       deviceType: verification.registrationInfo.credentialDeviceType,
       backedUp: verification.registrationInfo.credentialBackedUp,
       transport: req.body.transports,
+    },{
+      ...regInfo
     });
     cookieN={}
     return res.json({ verified: verification.verified });
@@ -190,11 +189,11 @@ app.get("/init-auth", async (req, res) => {
   }
   res.json(options);
 });
-
 app.post("/init-auth", async (req, res) => {
-  const {key}= req.body
-  if (!key) {
-    return res.status(400).json({ error: "key is required" });
+  const {email} = req.body;
+  console.log(email);
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
   }
 
   const user = getUserByEmail(email);
@@ -221,12 +220,13 @@ app.post("/init-auth", async (req, res) => {
   //   }),
   //   { httpOnly: true, maxAge: 60000, secure: false }
   // );
-cookieN={
-  userId: user.id,
-  challenge: options.challenge,
-}
+  cookieN={
+    userId: user.id,
+    challenge: options.challenge,
+  }
   res.json(options);
 });
+
 
 
 app.post("/verify-auth", async (req, res) => {
@@ -260,7 +260,8 @@ app.post("/verify-auth", async (req, res) => {
     cookieN={}
     // Save user in a session cookie
     return res.json({ verified: verification.verified,
-      user
+      user,
+      userN:userN
      });
   } else {
     return res
